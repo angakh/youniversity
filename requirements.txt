@@ -1,0 +1,17 @@
+# Core dependencies
+streamlit>=1.32.0
+python-dotenv>=1.0.0
+pytube>=15.0.0
+youtube-transcript-api>=0.6.1
+openai>=1.10.0
+requests>=2.31.0
+pathlib>=1.0.1
+pydantic>=2.4.2
+
+# Whisper for audio transcription
+openai-whisper>=1.1.10
+torch>=2.0.1
+numpy>=1.24.3
+
+# Additional utilities
+python-dateutil>=2.8.2
