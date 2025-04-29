@@ -37,7 +37,7 @@ The application also provides customization options through the sidebar, allowin
 to select different LLM providers, models, and prompt templates.
 """
 
-import streamlit as st
+import streamlit as st # type: ignore
 import os
 import logging
 import re

@@ -3,6 +3,7 @@ streamlit>=1.32.0
 python-dotenv>=1.0.0
 pytube>=15.0.0
 youtube-transcript-api>=0.6.1
+yt-dlp==2025.3.31
 openai>=1.10.0
 requests>=2.31.0
 pathlib>=1.0.1
