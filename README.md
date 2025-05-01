@@ -35,7 +35,7 @@ Learn from YouTube videos with AI-powered conversations. Youniversity is a Strea
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/youniversity.git
+   git clone https://github.com/angakh/youniversity.git
    cd youniversity
    ```
 
