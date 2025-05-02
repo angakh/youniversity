@@ -54,9 +54,8 @@ import yt_dlp
 from pytube import YouTube
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Import the Config class
+from config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -65,15 +64,25 @@ logger = logging.getLogger(__name__)
 class YouTubeTranscriptFetcher:
     """Fetches transcripts from YouTube videos"""
     
-    def __init__(self, model_size: str = "base"):
+    def __init__(self, model_size: str = None):
         """
         Initialize the transcript fetcher.
         
         Args:
             model_size: Size of the whisper model (tiny, base, small, medium, large)
         """
-        self.model_size = model_size
+        # Get application configuration
+        config = Config.get_instance()
+        
+        # Use provided model size or fall back to config
+        self.model_size = model_size or config.whisper_model_size
         self.whisper_model = None  # Lazy load to save memory
+        
+        # Get transcription languages from config
+        self.transcription_languages = config.transcription_languages
+        
+        logger.info(f"Initialized YouTubeTranscriptFetcher with model size: {self.model_size}")
+        logger.info(f"Transcription languages: {self.transcription_languages}")
     
     def get_video_id(self, url: str) -> str:
         """
@@ -125,7 +134,8 @@ class YouTubeTranscriptFetcher:
             
             # Try to get English transcript first, then any available
             try:
-                transcript = transcript_list.find_transcript(['en'])
+                # Try first with the configured languages
+                transcript = transcript_list.find_transcript(self.transcription_languages)
             except NoTranscriptFound:
                 # Try to get any manually created transcript
                 try:
@@ -149,6 +159,7 @@ class YouTubeTranscriptFetcher:
         except Exception as e:
             logger.error(f"Error fetching transcript: {str(e)}")
             raise
+            
     def get_video_info(self, video_id: str, url: str) -> Dict[str, Any]:
         """
         Get video information using yt-dlp.

@@ -11,7 +11,7 @@ Key responsibilities:
    video information, chat history, and user preferences.
 3. Provider & Resource Management: Initializes and provides access to core services:
    - YouTubeTranscriptFetcher: Retrieves video transcripts and metadata
-   - ProviderManager: Handles communication with various LLM providers (Ollama, OpenAI, Anthropic)
+   - ProviderManager: Handles communication with various LLM providers (Local, OpenAI, Anthropic)
    - PromptManager: Manages prompt templates for AI interactions
 4. Workflow Coordination: Orchestrates the main application workflows:
    - Transcript fetching and display
@@ -23,9 +23,9 @@ below the video transcript once loaded, providing a seamless experience for user
 interact with video content through natural language.
 
 Dependencies:
-- External Python packages: streamlit, dotenv, logging
-- Custom modules: youtube_utils, llm_providers, prompt_manager
-- Environment variables: Configuration loaded from .env file
+- External Python packages: streamlit, logging
+- Custom modules: youtube_utils, llm_providers, prompt_manager, config
+- Environment variables: Configuration loaded via config module
 
 User interaction flow:
 1. User enters a YouTube URL and clicks "Fetch Transcript"
@@ -38,12 +38,10 @@ to select different LLM providers, models, and prompt templates.
 """
 
 import streamlit as st # type: ignore
-import os
 import logging
 import re
 from pathlib import Path
 import time
-from dotenv import load_dotenv
 import warnings
 
 # Suppress torch warnings
@@ -53,16 +51,21 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="torch._classe
 from youtube_utils import YouTubeTranscriptFetcher
 from llm_providers import ProviderManager
 from prompt_manager import PromptManager
+from config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
+# Get application configuration
+config = Config.get_instance()
+
+# Set debug level based on config
+if config.debug:
+    logging.getLogger().setLevel(logging.DEBUG)
 
 # init streamlit
-st.set_page_config(page_title="Youniversity", page_icon="🎓", layout="wide")
+st.set_page_config(page_title=config.app_name, page_icon="🎓", layout="wide")
 
 # Add custom CSS for chat styling that works in both light and dark mode
 st.markdown("""
@@ -132,19 +135,15 @@ if 'fetching_in_progress' not in st.session_state:
 # Initialize our managers
 @st.cache_resource
 def get_transcript_fetcher():
-    # Get whisper model size from environment or use default
-    whisper_model_size = os.environ.get("WHISPER_MODEL_SIZE", "base")
-    return YouTubeTranscriptFetcher(model_size=whisper_model_size)
+    return YouTubeTranscriptFetcher(model_size=config.whisper_model_size)
 
 @st.cache_resource
 def get_provider_manager():
-    config_path = os.environ.get("CONFIG_PATH", None)
-    return ProviderManager(config_path)
+    return ProviderManager()
 
 @st.cache_resource
 def get_prompt_manager():
-    prompts_dir = os.environ.get("PROMPTS_DIR", "prompts")
-    return PromptManager(prompts_dir)
+    return PromptManager(config.prompts_dir)
 
 # Get our manager instances
 transcript_fetcher = get_transcript_fetcher()
@@ -227,8 +226,8 @@ def generate_response(question, provider_name, model_name):
                 model=model_name,
                 prompt=formatted_prompt,
                 context=context,
-                temperature=0.7,
-                max_tokens=1000
+                temperature=config.model_temperature,
+                max_tokens=config.model_max_tokens
             )
             
             if error:
@@ -243,7 +242,7 @@ def generate_response(question, provider_name, model_name):
             return None
 
 # App title and description
-st.title("🎓 Youniversity")
+st.title(f"🎓 {config.app_name}")
 st.markdown("Learn from YouTube videos with AI-powered conversations")
 
 # Create a sidebar for settings
@@ -251,7 +250,8 @@ st.sidebar.title("Settings")
 
 # Select LLM provider and model
 available_providers = provider_manager.get_available_providers()
-default_provider = "ollama" if "ollama" in available_providers else available_providers[0] if available_providers else None
+default_provider = config.default_provider
+default_provider = default_provider if default_provider in available_providers else available_providers[0] if available_providers else None
 
 if default_provider:
     provider_name = st.sidebar.selectbox(
@@ -264,10 +264,26 @@ if default_provider:
     provider = provider_manager.get_provider(provider_name)
     available_models = provider.get_available_models() if provider else []
     
-    # Set default model (llama3 for ollama, otherwise first available)
-    default_model = "llama3" if provider_name == "ollama" and "llama3" in available_models else available_models[0] if available_models else None
+    # Set default model based on provider
+    default_model = None
+    if provider_name == "local":
+        local_provider_type = config.local_llm_type
+        if local_provider_type == "ollama":
+            default_model = config.local_llm_standard_model
+        else:
+            default_model = available_models[0] if available_models else None
+    elif provider_name == "openai":
+        default_model = config.openai_default_model
+    elif provider_name == "anthropic":
+        default_model = config.anthropic_default_model
+    else:
+        default_model = available_models[0] if available_models else None
     
-    if default_model:
+    # Make sure default model exists in available models
+    if default_model not in available_models and available_models:
+        default_model = available_models[0]
+    
+    if default_model and available_models:
         model_name = st.sidebar.selectbox(
             "Select Model",
             options=available_models,
@@ -280,6 +296,11 @@ else:
     st.sidebar.warning("No LLM providers available")
     provider_name = None
     model_name = None
+
+# Add a display to show which type of local provider is being used
+if provider_name == "local" and model_name:
+    local_provider_type = config.local_llm_type.capitalize()
+    st.sidebar.info(f"Using {local_provider_type} as your local LLM provider")
 
 # Prompt template selection
 st.sidebar.markdown("---")
@@ -360,9 +381,6 @@ if st.session_state.fetching_in_progress:
 if st.session_state.transcript and st.session_state.video_info:
     # Display video info
     video_info = st.session_state.video_info
-    
-    # Debug info (uncomment for troubleshooting)
-    # st.write("Debug - Video Info:", video_info)
     
     # Create two columns
     col1, col2 = st.columns([1, 3])
@@ -460,4 +478,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown("Youniversity - Learn from YouTube videos with AI")
+st.markdown(f"{config.app_name} - Learn from YouTube videos with AI")

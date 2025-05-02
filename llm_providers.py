@@ -11,7 +11,7 @@ Key components:
      with methods for listing available models and generating responses.
 
 2. Provider Implementations:
-   - OllamaProvider: Connects to locally-running Ollama models (e.g., LLaMA, Mistral)
+   - LocalLLMProvider: Connects to locally-running LLM servers (Ollama, KoboldAI, etc.)
    - OpenAIProvider: Integrates with OpenAI's API for models like GPT-4o
    - AnthropicProvider: Connects to Anthropic's API for Claude models
 
@@ -38,11 +38,10 @@ context formatting for each provider to ensure optimal performance with video tr
 
 Dependencies:
 - openai: For OpenAI API integration
-- requests: For HTTP communication with Ollama and Anthropic APIs
+- requests: For HTTP communication with Local LLM servers and Anthropic APIs
 - json: For parsing API responses
 - logging: For error tracking and debugging
 """
-import os
 import json
 from typing import Dict, List, Optional, Any, Tuple
 import requests
@@ -50,6 +49,9 @@ import logging
 from openai import OpenAI
 from pathlib import Path
 import importlib.util
+
+# Import the Config class
+from config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -106,29 +108,49 @@ class LLMProvider:
             Formatted message
         """
         return f"{prompt}\n\nCONTEXT:\n{context}"
-        
 
-class OllamaProvider(LLMProvider):
-    """Provider for Ollama models"""
+
+class LocalLLMProvider(LLMProvider):
+    """Provider for locally-hosted LLM services (Ollama, KoboldAI, etc.)"""
     
     def __init__(self, config: Dict = None):
         """
-        Initialize the Ollama provider.
+        Initialize the Local LLM provider.
         
         Args:
-            config: Configuration dictionary
+            config: Configuration dictionary containing:
+                   - api_url: Base URL for the API
+                   - provider_type: Type of local provider (ollama, kobold, etc.)
         """
         super().__init__(config)
-        self.name = "ollama"
-        self.base_url = self.config.get("api_url", "http://localhost:11434")
+        self.name = "local"
+        
+        # Get application config
+        app_config = Config.get_instance()
+        
+        # Use config values from provider config first, then fall back to app config
+        self.base_url = self.config.get("api_url", app_config.local_llm_api_url)
+        self.provider_type = self.config.get("provider_type", app_config.local_llm_type).lower()
+        
+        logger.info(f"Initialized Local LLM Provider of type '{self.provider_type}' at {self.base_url}")
     
     def get_available_models(self) -> List[str]:
         """
-        Get list of available models from Ollama.
+        Get list of available models from the local LLM server.
         
         Returns:
             List of model names
         """
+        if self.provider_type == "ollama":
+            return self._get_ollama_models()
+        elif self.provider_type == "kobold":
+            return self._get_kobold_models()
+        else:
+            logger.warning(f"Unsupported local provider type: {self.provider_type}")
+            return []
+    
+    def _get_ollama_models(self) -> List[str]:
+        """Get available models from Ollama server"""
         try:
             response = requests.get(f"{self.base_url}/api/tags")
             if response.status_code == 200:
@@ -142,23 +164,59 @@ class OllamaProvider(LLMProvider):
             logger.error(f"Error getting Ollama models: {e}")
             return []
     
-    def generate_response(self, prompt: str, context: str, model: str = "llama3", 
-                         temperature: float = 0.7, max_tokens: int = 1000) -> str:
+    def _get_kobold_models(self) -> List[str]:
+        """Get available models from KoboldAI server"""
+        try:
+            # KoboldAI API endpoint for model listing
+            # Adjust this based on the actual KoboldAI API
+            response = requests.get(f"{self.base_url}/api/v1/model")
+            if response.status_code == 200:
+                data = response.json()
+                # Parse according to KoboldAI's API response format
+                # This is a placeholder - adjust based on actual API
+                models = data.get('models', [])
+                return models
+            else:
+                logger.error(f"Failed to get KoboldAI models: {response.text}")
+                return []
+        except Exception as e:
+            logger.error(f"Error getting KoboldAI models: {e}")
+            return []
+    
+    def generate_response(self, prompt: str, context: str, model: str = None, 
+                          temperature: float = 0.7, max_tokens: int = 1000) -> str:
         """
-        Generate a response using Ollama.
+        Generate a response using the local LLM provider.
         
         Args:
             prompt: The prompt template
             context: The context to use (transcript)
-            model: The model to use (e.g., "llama3")
+            model: The model to use
             temperature: Temperature parameter
             max_tokens: Maximum tokens to generate
             
         Returns:
             Generated response
         """
+        # Get application config for default values
+        app_config = Config.get_instance()
+        
+        # Use passed model or fall back to config
+        if model is None:
+            model = app_config.local_llm_standard_model
+        
+        if self.provider_type == "ollama":
+            return self._generate_ollama_response(prompt, context, model, temperature, max_tokens)
+        elif self.provider_type == "kobold":
+            return self._generate_kobold_response(prompt, context, model, temperature, max_tokens)
+        else:
+            return f"Error: Unsupported local provider type: {self.provider_type}"
+
+    def _generate_ollama_response(self, prompt: str, context: str, model: str = "llama3", 
+                                 temperature: float = 0.7, max_tokens: int = 1000) -> str:
+        """Generate response using Ollama"""
         try:
-            formatted_message = self.format_message(prompt, context)
+            formatted_message = self._format_ollama_message(prompt, context)
             
             payload = {
                 "model": model,
@@ -187,9 +245,57 @@ class OllamaProvider(LLMProvider):
             logger.error(f"Error generating response with Ollama: {e}")
             return f"Error: {str(e)}"
     
-    def format_message(self, prompt: str, context: str) -> str:
+    def _generate_kobold_response(self, prompt: str, context: str, model: str = None, 
+                                 temperature: float = 0.7, max_tokens: int = 1000) -> str:
+        """Generate response using KoboldAI"""
+        try:
+            formatted_message = self._format_kobold_message(prompt, context)
+            
+            # Adjust this based on the actual KoboldAI API
+            payload = {
+                "prompt": formatted_message,
+                "max_length": max_tokens,
+                "temperature": temperature,
+                "model": model
+            }
+            
+            # KoboldAI API endpoint for text generation
+            # Adjust this based on the actual KoboldAI API
+            response = requests.post(
+                f"{self.base_url}/api/v1/generate",
+                json=payload
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Parse according to KoboldAI's API response format
+                # This is a placeholder - adjust based on actual API
+                return data.get("text", "No response generated")
+            else:
+                error_msg = f"KoboldAI error: {response.status_code} - {response.text}"
+                logger.error(error_msg)
+                return f"Error: {error_msg}"
+                
+        except Exception as e:
+            logger.error(f"Error generating response with KoboldAI: {e}")
+            return f"Error: {str(e)}"
+    
+    def _format_ollama_message(self, prompt: str, context: str) -> str:
         """Format the message for Ollama models"""
         return f"{prompt}\n\nCONTEXT:\n{context}\n\nAnswer:"
+    
+    def _format_kobold_message(self, prompt: str, context: str) -> str:
+        """Format the message for KoboldAI models"""
+        return f"{prompt}\n\nCONTEXT:\n{context}\n\nAnswer:"
+    
+    def format_message(self, prompt: str, context: str) -> str:
+        """Format the message based on provider type"""
+        if self.provider_type == "ollama":
+            return self._format_ollama_message(prompt, context)
+        elif self.provider_type == "kobold":
+            return self._format_kobold_message(prompt, context)
+        else:
+            return super().format_message(prompt, context)
 
 
 class OpenAIProvider(LLMProvider):
@@ -204,7 +310,12 @@ class OpenAIProvider(LLMProvider):
         """
         super().__init__(config)
         self.name = "openai"
-        self.api_key = self.config.get("api_key", os.environ.get("OPENAI_API_KEY", ""))
+        
+        # Get application config
+        app_config = Config.get_instance()
+        
+        # Use config values from provider config first, then fall back to app config
+        self.api_key = self.config.get("api_key", app_config.openai_api_key)
         self.client = OpenAI(api_key=self.api_key)
     
     def get_available_models(self) -> List[str]:
@@ -228,7 +339,7 @@ class OpenAIProvider(LLMProvider):
             logger.error(f"Error getting OpenAI models: {e}")
             return []
     
-    def generate_response(self, prompt: str, context: str, model: str = "gpt-4o", 
+    def generate_response(self, prompt: str, context: str, model: str = None, 
                          temperature: float = 0.7, max_tokens: int = 1000) -> str:
         """
         Generate a response using OpenAI.
@@ -246,6 +357,13 @@ class OpenAIProvider(LLMProvider):
         try:
             if not self.api_key:
                 return "Error: OpenAI API key not set"
+            
+            # Get application config for default values
+            app_config = Config.get_instance()
+            
+            # Use passed model or fall back to config
+            if model is None:
+                model = app_config.openai_default_model
             
             system_prompt = """You are a helpful AI assistant that answers questions about YouTube videos.
             Use the provided video transcript to answer questions accurately.
@@ -284,9 +402,13 @@ class AnthropicProvider(LLMProvider):
         """
         super().__init__(config)
         self.name = "anthropic"
-        self.api_key = self.config.get("api_key", os.environ.get("ANTHROPIC_API_KEY", ""))
+        
+        # Get application config
+        app_config = Config.get_instance()
+        
+        # Use config values from provider config first, then fall back to app config
+        self.api_key = self.config.get("api_key", app_config.anthropic_api_key)
         self.base_url = "https://api.anthropic.com/v1/messages"
-        self.default_model = "claude-3-opus-20240229"
     
     def get_available_models(self) -> List[str]:
         """
@@ -300,8 +422,8 @@ class AnthropicProvider(LLMProvider):
             "claude-3-opus-20240229",
             "claude-3-sonnet-20240229", 
             "claude-3-haiku-20240307",
-            "claude-2.1", 
-            "claude-2.0"
+            "claude-3.5-sonnet-20240620",
+            "claude-3.7-sonnet-20250219"
         ]
     
     def generate_response(self, prompt: str, context: str, model: str = None, 
@@ -323,7 +445,12 @@ class AnthropicProvider(LLMProvider):
             if not self.api_key:
                 return "Error: Anthropic API key not set"
             
-            model = model or self.default_model
+            # Get application config for default values
+            app_config = Config.get_instance()
+            
+            # Use passed model or fall back to config
+            if model is None:
+                model = app_config.anthropic_default_model
             
             system_prompt = """You are a helpful AI assistant that answers questions about YouTube videos.
             Use the provided video transcript to answer questions accurately.
@@ -403,22 +530,28 @@ class ProviderManager:
     
     def register_default_providers(self):
         """Register the default LLM providers."""
-        # Configure Ollama provider
-        ollama_config = self.config.get("ollama", {})
-        if not ollama_config:
-            ollama_config = {"api_url": os.environ.get("OLLAMA_API_URL", "http://localhost:11434")}
-        self.providers["ollama"] = OllamaProvider(ollama_config)
+        # Get application config
+        app_config = Config.get_instance()
+        
+        # Configure Local LLM provider
+        local_config = self.config.get("local", {})
+        if not local_config:
+            local_config = {
+                "api_url": app_config.local_llm_api_url,
+                "provider_type": app_config.local_llm_type
+            }
+        self.providers["local"] = LocalLLMProvider(local_config)
         
         # Configure OpenAI provider
         openai_config = self.config.get("openai", {})
         if not openai_config:
-            openai_config = {"api_key": os.environ.get("OPENAI_API_KEY", "")}
+            openai_config = {"api_key": app_config.openai_api_key}
         self.providers["openai"] = OpenAIProvider(openai_config)
         
         # Configure Anthropic provider
         anthropic_config = self.config.get("anthropic", {})
         if not anthropic_config:
-            anthropic_config = {"api_key": os.environ.get("ANTHROPIC_API_KEY", "")}
+            anthropic_config = {"api_key": app_config.anthropic_api_key}
         self.providers["anthropic"] = AnthropicProvider(anthropic_config)
     
     def register_provider(self, provider_name: str, provider_instance: LLMProvider):
@@ -471,7 +604,7 @@ class ProviderManager:
         return models
     
     def generate_response(self, provider_name: str, model: str, prompt: str, context: str,
-                         temperature: float = 0.7, max_tokens: int = 1000) -> Tuple[str, str]:
+                         temperature: float = None, max_tokens: int = None) -> Tuple[str, str]:
         """
         Generate a response using the specified provider and model.
         
@@ -491,6 +624,16 @@ class ProviderManager:
             return "", f"Provider '{provider_name}' not found"
         
         try:
+            # Get application config for default values
+            app_config = Config.get_instance()
+            
+            # Use provided values or fall back to config
+            if temperature is None:
+                temperature = app_config.model_temperature
+            
+            if max_tokens is None:
+                max_tokens = app_config.model_max_tokens
+            
             response = provider.generate_response(
                 prompt=prompt,
                 context=context,

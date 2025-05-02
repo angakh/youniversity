@@ -41,6 +41,9 @@ import logging
 from typing import Dict, List, Optional
 from pathlib import Path
 
+# Import the Config class
+from config import Config
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -48,14 +51,20 @@ logger = logging.getLogger(__name__)
 class PromptManager:
     """Manager for prompt templates"""
     
-    def __init__(self, prompts_dir: str = "prompts"):
+    def __init__(self, prompts_dir: str = None):
         """
         Initialize the prompt manager.
         
         Args:
             prompts_dir: Directory containing prompt template files
         """
-        self.prompts_dir = Path(prompts_dir)
+        # Get application configuration
+        config = Config.get_instance()
+        
+        # Use provided prompts directory or fall back to config
+        self.prompts_dir = Path(prompts_dir or config.prompts_dir)
+        
+        logger.info(f"Initializing PromptManager with prompts directory: {self.prompts_dir}")
         self.ensure_prompts_directory()
         self.ensure_default_prompt()
     
@@ -115,7 +124,9 @@ User question: {question}"""
                 return None
             
             with open(prompt_path, "r") as f:
-                return f.read()
+                content = f.read()
+                logger.debug(f"Loaded prompt template: {filename}")
+                return content
                 
         except Exception as e:
             logger.error(f"Error loading prompt: {e}")
