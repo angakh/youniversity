@@ -20,15 +20,18 @@ Learn from YouTube videos with AI-powered conversations. Youniversity is a Strea
 - **Audio Transcription**: Generate transcripts from audio if no subtitle is available
 - **AI Conversation**: Ask questions about the video content and get contextual answers
 - **Timestamped References**: AI responses include links to the relevant parts of the video
-- **Multiple LLM Providers**: Support for Ollama, OpenAI, and Anthropic LLMs
+- **Multiple LLM Providers**: Support for local LLMs (Ollama, KoboldAI), OpenAI, and Anthropic
 - **Custom Prompts**: Create, edit, and manage prompt templates in the browser
+- **Centralized Configuration**: All settings managed through a single configuration system
 
 ## Installation
 
 ### Prerequisites
 
 - Python 3.8+
-- [Ollama](https://ollama.ai/) (optional, for local LLM support)
+- A Local LLM Provider (optional):
+  - [Ollama](https://ollama.ai/)
+  - [KoboldAI](https://github.com/KoboldAI/KoboldAI-Client)
 - API keys for OpenAI or Anthropic (optional, for cloud LLM support)
 
 ### Setup
@@ -99,9 +102,13 @@ Learn from YouTube videos with AI-powered conversations. Youniversity is a Strea
 
 1. Make sure your virtual environment is activated.
 
-2. If you plan to use Ollama, ensure it's running:
+2. If you plan to use a local LLM provider, ensure it's running:
    ```bash
+   # For Ollama
    ollama serve
+   
+   # For KoboldAI
+   # Follow their startup instructions
    ```
 
 3. Start the Streamlit application:
@@ -135,23 +142,60 @@ Learn from YouTube videos with AI-powered conversations. Youniversity is a Strea
 
 ### Selecting LLM Providers
 
-1. Use the sidebar to select your preferred LLM provider.
+1. Use the sidebar to select your preferred LLM provider:
+   - **Local**: Uses a locally-hosted LLM (Ollama, KoboldAI)
+   - **OpenAI**: Uses OpenAI's API (requires API key)
+   - **Anthropic**: Uses Anthropic's API (requires API key)
 2. Choose a model from the available options for the selected provider.
-3. The default provider is Ollama with the llama3 model (if available).
 
 ## Configuration
 
-The application can be configured by editing the `.env` file:
+The application configuration is managed through the `.env` file and the `config.py` module.
 
-- `WHISPER_MODEL_SIZE`: Size of the Whisper model for audio transcription (tiny, base, small, medium, large).
-- `TRANSCRIPTION_LANGUAGES`: Comma-separated list of language codes to try when fetching transcripts.
-- `DEFAULT_PROVIDER`: Default LLM provider to use (ollama, openai, anthropic).
-- `OLLAMA_API_URL`: URL for the Ollama API.
-- `OPENAI_API_KEY`: Your OpenAI API key.
-- `ANTHROPIC_API_KEY`: Your Anthropic API key.
-- `PROMPTS_DIR`: Directory for prompt templates.
-- `MODEL_TEMPERATURE`: Temperature parameter for LLM generation.
-- `MODEL_MAX_TOKENS`: Maximum tokens to generate in responses.
+### Configuration File (`.env`)
+
+```ini
+# Application configuration
+APP_NAME=Youniversity
+DEBUG=False
+
+# YouTube transcript configuration
+WHISPER_MODEL_SIZE=base
+TRANSCRIPTION_LANGUAGES=en,es,fr,de
+
+# LLM Providers configuration
+DEFAULT_PROVIDER=local
+
+# Local LLM configuration
+LOCAL_LLM_TYPE=ollama
+LOCAL_LLM_API_URL=http://localhost:11434
+LOCAL_LLM_STANDARD_MODEL=llama3
+LOCAL_LLM_REASONING_MODEL=mistral
+
+# OpenAI configuration
+OPENAI_API_KEY=your_openai_key_here
+OPENAI_DEFAULT_MODEL=gpt-4o
+
+# Anthropic configuration
+ANTHROPIC_API_KEY=your_anthropic_key_here
+ANTHROPIC_DEFAULT_MODEL=claude-3-opus-20240229
+
+# Directory paths
+PROMPTS_DIR=prompts
+
+# Model parameters
+MODEL_TEMPERATURE=0.7
+MODEL_MAX_TOKENS=1000
+```
+
+### Configuration Module (`config.py`)
+
+The application uses a centralized configuration system implemented in `config.py` that:
+
+1. Loads configuration from environment variables and the `.env` file
+2. Provides typed access to configuration values
+3. Sets sensible defaults for optional settings
+4. Validates required configuration
 
 ## Troubleshooting
 
@@ -159,11 +203,13 @@ The application can be configured by editing the `.env` file:
 
 1. **No transcripts available**: Some YouTube videos don't have available transcripts. The application will attempt to generate one from the audio.
 
-2. **Ollama not found**: Ensure Ollama is installed and running. The default API endpoint is http://localhost:11434.
+2. **Local LLM provider not found**: Ensure your selected local LLM provider (Ollama, KoboldAI) is installed and running. For Ollama, the default API endpoint is http://localhost:11434.
 
 3. **Slow transcription**: Generating transcripts from audio can be resource-intensive. Consider reducing the Whisper model size in the `.env` file.
 
 4. **API key errors**: Check that your OpenAI or Anthropic API keys are correctly set in the `.env` file.
+
+5. **Configuration not loading**: Make sure your `.env` file is in the correct location and follows the proper format.
 
 ## Contributing
 
@@ -171,4 +217,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GNU GENERAL PUBLIC LICENSE - see the LICENSE file for details.
