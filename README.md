@@ -34,6 +34,10 @@ Learn from YouTube videos with AI-powered conversations. Youniversity is a Strea
   - [KoboldAI](https://github.com/KoboldAI/KoboldAI-Client)
 - API keys for OpenAI or Anthropic (optional, for cloud LLM support)
 
+#### My tutorials for setting Ollama or KoboldAI locally
+- [Ollama](https://nightfalladvisors.com/ollama-the-open-source-solution-for-your-local-llm-dreams/)
+- [KoboldAI](https://nightfalladvisors.com/setup-your-own-local-ai-chatbot/)
+
 ### Setup
 
 1. Clone this repository:
