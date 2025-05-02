@@ -406,7 +406,7 @@ class ProviderManager:
         # Configure Ollama provider
         ollama_config = self.config.get("ollama", {})
         if not ollama_config:
-            ollama_config = {"api_url": "http://localhost:11434"}
+            ollama_config = {"api_url": os.environ.get("OLLAMA_API_URL", "http://localhost:11434")}
         self.providers["ollama"] = OllamaProvider(ollama_config)
         
         # Configure OpenAI provider

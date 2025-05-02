@@ -64,35 +64,51 @@ load_dotenv()
 # init streamlit
 st.set_page_config(page_title="Youniversity", page_icon="🎓", layout="wide")
 
-# Add custom CSS for chat styling
+# Add custom CSS for chat styling that works in both light and dark mode
 st.markdown("""
 <style>
-    /* User message styling */
+    /* User message styling - works in both light and dark mode */
     .user-message {
-        background-color: #f5f5f5;
-        border-radius: 10px;
+        background-color: rgba(128, 128, 128, 0.1);  /* Semi-transparent gray that works in both modes */
+        border-left: 3px solid rgba(0, 120, 212, 0.8);  /* Colored left border for visual distinction */
+        border-radius: 4px;
         padding: 10px 15px;
         margin-bottom: 10px;
+        color: inherit;  /* Inherit text color from theme */
     }
     
-    /* AI message styling */
+    /* AI message styling - works in both light and dark mode */
     .ai-message {
-        background-color: #e6f2ff;
-        border-radius: 10px;
+        background-color: rgba(0, 120, 212, 0.08);  /* Semi-transparent blue that works in both modes */
+        border-left: 3px solid rgba(0, 120, 212, 0.8);  /* Colored left border for visual distinction */
+        border-radius: 4px;
         padding: 10px 15px;
         margin-bottom: 10px;
+        color: inherit;  /* Inherit text color from theme */
     }
     
-    /* Message headers */
+    /* Message headers - works in both modes */
     .message-header {
         font-weight: bold;
         margin-bottom: 5px;
+        color: inherit;  /* Inherit text color from theme */
     }
     
-    /* Separator */
+    /* Separator - works in both modes */
     .message-separator {
         margin: 15px 0;
-        border-top: 1px solid #ddd;
+        border-top: 1px solid rgba(128, 128, 128, 0.2);  /* Semi-transparent border */
+    }
+    
+    /* Make sure links are visible in both modes */
+    .user-message a, .ai-message a {
+        color: rgb(0, 120, 212);  /* Use a standard link blue that works on light and dark backgrounds */
+        text-decoration: underline;
+    }
+    
+    /* Add hover effect for links */
+    .user-message a:hover, .ai-message a:hover {
+        opacity: 0.8;
     }
 </style>
 """, unsafe_allow_html=True)
