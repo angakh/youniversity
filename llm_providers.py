@@ -366,9 +366,11 @@ class OpenAIProvider(LLMProvider):
                 model = app_config.openai_default_model
             
             system_prompt = """You are a helpful AI assistant that answers questions about YouTube videos.
-            Use the provided video transcript to answer questions accurately.
-            When referencing specific parts of the video, include the timestamp URL so the user can jump to that part.
-            If you don't know the answer, say so rather than making up information."""
+                                Use the provided video transcript to answer questions accurately.
+                                When referencing specific parts of the video, include single timestamps in [MM:SS] format showing when that topic begins.
+                                Never use timestamp ranges - only use the starting timestamp for each reference.
+                                Include multiple timestamps throughout your response when discussing different parts of the video.
+                                If you don't know the answer, say so rather than making up information."""
             
             formatted_context = f"TRANSCRIPT:\n{context}"
             
@@ -453,9 +455,11 @@ class AnthropicProvider(LLMProvider):
                 model = app_config.anthropic_default_model
             
             system_prompt = """You are a helpful AI assistant that answers questions about YouTube videos.
-            Use the provided video transcript to answer questions accurately.
-            When referencing specific parts of the video, include the timestamp URL so the user can jump to that part.
-            If you don't know the answer, say so rather than making up information."""
+                                Use the provided video transcript to answer questions accurately.
+                                When referencing specific parts of the video, include single timestamps in [MM:SS] format showing when that topic begins.
+                                Never use timestamp ranges - only use the starting timestamp for each reference.
+                                Include multiple timestamps throughout your response when discussing different parts of the video.
+                                If you don't know the answer, say so rather than making up information."""
             
             formatted_message = self.format_message(prompt, context)
             

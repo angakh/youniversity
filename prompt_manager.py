@@ -84,9 +84,13 @@ class PromptManager:
 
 Your task is to:
 1. Answer the user's questions based only on the transcript provided
-2. When referencing specific content, include the timestamp URL so the user can jump to that section
-3. Be concise and accurate in your answers
-4. If the transcript doesn't contain information to answer the question, be honest about this
+2. When referencing specific content from the video, ALWAYS include timestamps in the format [MM:SS]
+3. Copy the exact timestamp format from the transcript - for example: [02:45]
+4. Include multiple timestamps throughout your response when referencing different parts of the video
+5. Be concise and accurate in your answers
+6. If the transcript doesn't contain information to answer the question, be honest about this
+
+IMPORTANT: Always include timestamps in [MM:SS] format when referencing any specific content from the video. These timestamps will automatically become clickable links. DO NOT add URLs or any other formatting to the timestamps - just use the [MM:SS] format exactly as it appears in the transcript.
 
 User question: {question}"""
             

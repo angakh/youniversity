@@ -103,6 +103,9 @@ class YouTubeTranscriptFetcher:
             video_id = parse_qs(parsed_url.query).get('v', [''])[0]
         elif "youtube.com/embed/" in url:
             video_id = url.split("youtube.com/embed/")[-1].split("?")[0]
+        elif "youtube.com/shorts/" in url:
+            # Handle YouTube Shorts URLs
+            video_id = url.split("youtube.com/shorts/")[-1].split("?")[0]
         else:
             raise ValueError(f"Unsupported YouTube URL format: {url}")
         
@@ -334,7 +337,7 @@ class YouTubeTranscriptFetcher:
                 time_str = self.format_time(segment.start)
                 text = segment.text
                 
-            timestamped_url = self.get_timestamped_url(url, segment.start if hasattr(segment, 'start') else segment["start"])
+            # Keep the simple format that process_timestamps() expects
             formatted_text += f"[{time_str}] {text}\n"
         
         return formatted_text
